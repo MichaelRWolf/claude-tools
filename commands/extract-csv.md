@@ -1,18 +1,24 @@
-Extract structured data from one or more confirmation or receipt screenshots and deliver it as CSV ready to paste into a spreadsheet.
+Extract Florida State Parks day-use vehicle entry reservations from one or more screenshots.
+
+Each confirmation shows fields like "Date: Fri 05/01/2026", "Standard Parking Space - P 057", "Confirmation #: 22569340", and "Purchased: 04/29/2026". A single image may contain multiple reservations stacked vertically.
+
+## Output columns (always these four, always in this order)
+
+Date, Confirmation Number, Parking Space, Purchased
 
 ## Steps
 
-1. **Examine all provided images** — note how many distinct records each image contains; some images hold multiple confirmations
-2. **Identify columns** — use headers stated by the user, or infer them from the repeating fields in the images
-3. **Extract every record** — one row per confirmation; do not skip records from multi-record images
-4. **Sort rows by date** if a date field is present
-5. **Display the CSV as a fenced code block** in the response
-6. **Copy to clipboard** — write the CSV to `/tmp/extracted.csv` and run `pbcopy < /tmp/extracted.csv` using the Bash tool so the user can paste directly into a spreadsheet
+1. Examine all provided images
+2. Extract every reservation found — do not skip records in multi-reservation images
+3. Sort rows by Date ascending
+4. Display the CSV as a fenced code block
+5. Write the CSV to `/tmp/park_reservations.csv` and run `pbcopy < /tmp/park_reservations.csv` using the Bash tool
+6. State how many reservations were extracted
 
-## Output rules
+## Format rules
 
-- First row: column headers
-- One row per record
-- Comma-separated; quote any field that contains a comma
+- First row: `Date,Confirmation Number,Parking Space,Purchased`
+- Date as MM/DD/YYYY (e.g. `05/01/2026`)
+- Parking Space as shown (e.g. `P 057`)
+- Confirmation Number and Purchased exactly as printed
 - No trailing blank lines
-- Confirm how many records were found at the end of your response
