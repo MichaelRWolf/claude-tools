@@ -26,7 +26,7 @@ make status
 
 | Command | Description |
 |---------|-------------|
-| `/extract-csv` | Extract structured data from confirmation/receipt screenshots → CSV in chat + clipboard |
+| `/extract-rainbow-springs-reservation` | Extract Florida State Parks day-use reservation confirmations from screenshots → CSV in chat + clipboard |
 
 ## Adding a new command
 
