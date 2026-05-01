@@ -8,12 +8,17 @@ Date, Confirmation Number, Parking Space, Purchased
 
 ## Steps
 
+0. If no images are provided, run `open https://reserve.floridastateparks.org/Web/Customers/CustomerReservations.aspx` using the Bash tool, then stop and output this error:
+   > No screenshots provided. To get your reservations, visit:
+   > https://reserve.floridastateparks.org/Web/Customers/CustomerReservations.aspx
+
 1. Examine all provided images
 2. Extract every reservation found — do not skip records in multi-reservation images
 3. Sort rows by Date ascending
 4. Display the CSV as a fenced code block
 5. Write the CSV to `/tmp/park_reservations.csv` and run `pbcopy < /tmp/park_reservations.csv` using the Bash tool
-6. State how many reservations were extracted
+6. Run `open "https://docs.google.com/spreadsheets/d/1wLHPw0uB7pe7hw_NJ9hPQWoQ2mt4uyv7_2YaQUt8-UU/edit?gid=0#gid=0"` using the Bash tool
+7. State how many reservations were extracted
 
 ## Format rules
 
