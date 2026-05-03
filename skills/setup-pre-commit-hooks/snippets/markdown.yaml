@@ -1,4 +1,14 @@
 repos:
+  - repo: https://github.com/sirosen/texthooks
+    rev: 0.7.1
+    hooks:
+      - id: fix-ligatures
+        types: [markdown]
+      - id: fix-smartquotes
+        types: [markdown]
+      - id: fix-unicode-dashes
+        types: [markdown]
+
   - repo: https://github.com/igorshubovych/markdownlint-cli
     rev: v0.48.0
     hooks:
