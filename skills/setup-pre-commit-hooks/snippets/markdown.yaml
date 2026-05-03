@@ -1,4 +1,17 @@
 repos:
+  - repo: local
+    hooks:
+      - id: markdown-table-formatter
+        name: markdown-table-formatter (align columns)
+        entry: npx markdown-table-formatter
+        language: system
+        types: [markdown]
+
+  - repo: https://github.com/igorshubovych/markdownlint-cli
+    rev: v0.48.0
+    hooks:
+      - id: markdownlint-fix
+
   - repo: https://github.com/sirosen/texthooks
     rev: 0.7.1
     hooks:
@@ -7,17 +20,4 @@ repos:
       - id: fix-smartquotes
         types: [markdown]
       - id: fix-unicode-dashes
-        types: [markdown]
-
-  - repo: https://github.com/igorshubovych/markdownlint-cli
-    rev: v0.48.0
-    hooks:
-      - id: markdownlint-fix
-
-  - repo: local
-    hooks:
-      - id: markdown-table-formatter
-        name: markdown-table-formatter (align columns)
-        entry: npx markdown-table-formatter
-        language: system
         types: [markdown]
