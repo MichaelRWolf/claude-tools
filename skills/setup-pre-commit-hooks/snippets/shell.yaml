@@ -1,0 +1,9 @@
+repos:
+  - repo: local
+    hooks:
+      - id: shellcheck-shell
+        name: shellcheck (shell files by type)
+        entry: shellcheck
+        language: system
+        types_or: [shell, bash, ksh]
+        args: [-x]

@@ -1,0 +1,19 @@
+# For dotfiles/shell-config repos only. These hooks name files explicitly because
+# sourced startup files have no shebang and won't be detected by filetype.
+# Edit the `files:` patterns to match your repo's actual paths.
+repos:
+  - repo: local
+    hooks:
+      - id: shellcheck-bash-startup
+        name: shellcheck (startup files not typed as shell)
+        entry: shellcheck
+        language: system
+        files: '^home/(\.aliases|\.bash_login|\.bash_prompt)$'
+        args: [--shell=bash, -x]
+
+      - id: shellcheck-profile
+        name: shellcheck (home/.profile)
+        entry: shellcheck
+        language: system
+        files: '^home/(\.profile|\.cargo/env|\.api_key_rc|\.rubyrc)$'
+        args: [--shell=sh, -x]
