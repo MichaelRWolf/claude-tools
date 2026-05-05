@@ -9,7 +9,7 @@ SKILL_LINKS   := $(patsubst skills/%,$(CLAUDE_SKILLS)/%,$(SKILLS_SRC))
 # Usage: make protect REPO=MichaelRWolf/repo-name
 REPO ?= $(error REPO is required: make protect REPO=owner/repo-name)
 
-.PHONY: install uninstall status protect
+.PHONY: install uninstall status protect setup-hooks
 
 install: $(CLAUDE_COMMANDS) $(LINKS) $(CLAUDE_SKILLS) $(SKILL_LINKS)
 	@echo "Installed $(words $(LINKS)) command(s) and $(words $(SKILL_LINKS)) skill(s)"
@@ -58,3 +58,6 @@ status:
 		if [ -L "$$f" ]; then echo "  [linked]  $$(basename $$f)"; \
 		else echo "  [missing] $$(basename $$f)"; fi; \
 	done
+
+setup-hooks:
+	pre-commit install
