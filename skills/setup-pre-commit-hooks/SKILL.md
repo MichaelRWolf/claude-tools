@@ -9,14 +9,6 @@ Assembles or verifies `.pre-commit-config.yaml` from canonical snippets stored i
 
 ## Detect mode
 
-**If `.pre-commit-config.yaml` does not exist** → run Initial Setup flow.
-
-**If `.pre-commit-config.yaml` exists** → run Verify flow.
-
----
-
-## Initial Setup flow
-
 ### Step 1 — Auto-detect categories
 
 Inspect the repo to pre-select applicable snippet categories:
@@ -29,32 +21,38 @@ Inspect the repo to pre-select applicable snippet categories:
 | Any shell files (`.sh`, shebang lines) | `shell`                 |
 | Any `.org` files present               | `local-guards`          |
 
-Present the pre-filled checklist to the user for confirmation. They may add or remove categories before proceeding.
+Pre-selection behavior differs per flow:
 
-### Step 2 — Assemble config
+- **Initial Setup**: pre-select based on detected signals; present checklist for confirmation
+- **Verify**: categories already active in the current config are pre-selected; signal-detected categories not in the config are offered as additions
+
+### Step 2 — Branch
+
+**If `.pre-commit-config.yaml` does not exist** → run Initial Setup flow.
+
+**If `.pre-commit-config.yaml` exists** → run Verify flow.
+
+---
+
+## Initial Setup flow
+
+### Step 1 — Assemble config
 
 Read each selected snippet file from `snippets/`. Each file is a self-contained `repos:` list. Merge all `repos:` entries into one final config, preserving order: universal → markdown → python → shell → shell-dotfiles → local-guards.
 
 Consolidate `local` repo entries: if multiple snippets contribute local hooks, merge them into a single `- repo: local` block.
 
-### Step 3 — Show draft and confirm
+### Step 2 — Show draft and confirm
 
 Display the assembled `.pre-commit-config.yaml` and a confirmation checklist:
 
 - Write `.pre-commit-config.yaml`?
 - Run `pre-commit autoupdate` to fetch latest revs? (recommended — snippets may have stale pins)
-- Run `make setup-hooks` to activate hooks? (recommended)
+- Then: run [Post-Config-Change Sequence](#post-config-change-sequence)?
 
-For the `make setup-hooks` item, check first:
-- `Makefile` exists with `setup-hooks` target → use it as-is
-- `Makefile` exists without `setup-hooks` → offer to add the target; show the proposed addition
-- No `Makefile` → offer to create one with the target; show the proposed file
+### Step 3 — Write and run
 
-If the user declines the Makefile offer, fall back to `pre-commit install` directly with a note.
-
-### Step 4 — Write and run
-
-Execute confirmed actions in order: write config → autoupdate → setup-hooks (or pre-commit install).
+Execute confirmed actions in order: write config → autoupdate → Post-Config-Change Sequence.
 
 ### Note on `shell-dotfiles` category
 
@@ -64,11 +62,7 @@ The `shell-dotfiles` snippet names specific file paths (`home/.aliases`, etc.) m
 
 ## Verify flow
 
-### Step 1 — Auto-detect categories
-
-Same detection logic as Initial Setup. Categories that appear active in the current config are pre-selected; others are offered as additions.
-
-### Step 2 — Diff against canonical snippets
+### Step 1 — Diff against canonical snippets
 
 For each repo entry in the current config:
 
@@ -79,11 +73,11 @@ For each repo entry in the current config:
 3. **Missing hooks** — hooks present in a matched snippet but absent from the current config → flag
 4. **Unrecognized hooks** — present in current config but not in any snippet → flag; suggest canonical equivalent where the purpose is obvious (e.g. `prettier-markdown` → `markdown-table-formatter`, `black` → `ruff-format`)
 
-### Step 3 — Report drift
+### Step 2 — Report drift
 
 Show a structured drift report. Example format:
 
-```
+```text
 ruff-pre-commit:  rev v0.4.0 → canonical v0.11.2  [stale]
 markdownlint-cli: rev v0.48.0 → canonical v0.48.0  [ok]
 prettier-markdown: unrecognized — consider migrating to markdown-table-formatter (canonical)
@@ -91,9 +85,68 @@ prettier-markdown: unrecognized — consider migrating to markdown-table-formatt
 
 If no drift: "Config matches canonical snippets. No changes needed."
 
+### Step 3 — Makefile check
+
+Always run, regardless of drift. See [Makefile Check Procedure](#makefile-check-procedure).
+
+Prompt (explicit yes/no): run `make setup-hooks` (or `pre-commit install` if no Makefile)?
+If yes → run it.
+
 ### Step 4 — Apply updates
 
 User says "write" to apply selected updates. Show diff before writing. Never write without explicit confirmation.
+
+### Step 5 — Post-write actions
+
+If changes were written to `.pre-commit-config.yaml`, prompt (explicit yes/no): stage and commit `.pre-commit-config.yaml`?
+If yes → stage and commit.
+
+---
+
+## Post-Config-Change Sequence
+
+Used by Initial Setup (Step 3) after `.pre-commit-config.yaml` is written. Verify handles this inline via its own Steps 3 and 5.
+
+**Order is required**: hooks must be installed before the commit runs, so pre-commit uses the new config during the commit.
+
+1. Run [Makefile Check Procedure](#makefile-check-procedure) and show recap
+2. Prompt (explicit yes/no): run `make setup-hooks` (or `pre-commit install` if no Makefile)?
+3. If yes → run it
+4. Prompt (explicit yes/no): stage and commit `.pre-commit-config.yaml`?
+5. If yes → stage and commit
+
+Do not chain steps silently. Confirm each before running.
+
+---
+
+## Makefile Check Procedure
+
+Check the repo for the `setup-hooks` target and report findings before offering options.
+
+**Recap (always show):**
+
+```text
+Makefile present:       yes / no
+setup-hooks target:     yes / no / n/a
+```
+
+**Then offer based on findings:**
+
+| Makefile | Target | Action                                                     |
+|----------|--------|------------------------------------------------------------|
+| yes      | yes    | Use `make setup-hooks` as-is                               |
+| yes      | no     | Offer to add `setup-hooks` target; show proposed addition  |
+| no       | n/a    | Offer to create `Makefile` with target; show proposed file |
+
+If user declines the Makefile offer → fall back to `pre-commit install` directly with a note.
+
+**Canonical `setup-hooks` target:**
+
+```makefile
+.PHONY: setup-hooks
+setup-hooks:
+    pre-commit install
+```
 
 ---
 
