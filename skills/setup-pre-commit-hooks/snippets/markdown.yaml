@@ -11,6 +11,8 @@ repos:
     rev: v0.48.0
     hooks:
       - id: markdownlint-fix
+        # companion: .markdownlint.json must include "MD060": false
+        # MD060 (table-column-style) conflicts with markdown-table-formatter output style
 
   - repo: https://github.com/sirosen/texthooks
     rev: 0.7.1
