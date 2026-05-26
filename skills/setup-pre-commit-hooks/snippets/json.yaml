@@ -1,0 +1,10 @@
+# Scope is intentionally narrow: only .claude/ config files.
+# Broader patterns risk touching package-lock.json, generated files, and data blobs.
+# To widen, change `files:` and add an `exclude:` pattern for generated/data JSON.
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: pretty-format-json
+        args: ["--autofix", "--sort-keys"]
+        files: '(^|/)\.claude/.*\.json$'
