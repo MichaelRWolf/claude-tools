@@ -25,9 +25,9 @@ Inspect the repo to pre-select applicable snippet categories:
 
 **Opt-in snippets** (never pre-selected; offer separately after the standard checklist):
 
-| Signal                       | Snippet | Why opt-in                                                                                    |
-|------------------------------|---------|-----------------------------------------------------------------------------------------------|
-| `.claude/` directory present | `json`  | Scoped to `.claude/*.json` by default; broader scope risks `package-lock.json` and data blobs |
+| Signal                     | Snippet | Why opt-in                                                                                            |
+|----------------------------|---------|-------------------------------------------------------------------------------------------------------|
+| Any `*.json` files present | `json`  | Scope varies widely by repo; always run [JSON Scope Selection](#json-scope-selection) before applying |
 
 Pre-selection behavior differs per flow:
 
@@ -58,15 +58,7 @@ Display the assembled `.pre-commit-config.yaml` and a confirmation checklist:
 - Run `pre-commit autoupdate` to fetch latest revs? (recommended -- snippets may have stale pins)
 - Then: run [Post-Config-Change Sequence](#post-config-change-sequence)?
 
-After the standard checklist, show any detected opt-in snippets as a separate section:
-
-```text
-Optional / scoped snippets (not included above):
-  [ ] json  -- pretty-format-json scoped to .claude/*.json
-              (broaden files: pattern if you want wider JSON normalization)
-```
-
-If the user selects an opt-in snippet, add it to the assembled config and re-display the draft before writing.
+After the standard checklist, offer any detected opt-in snippets. If any JSON files exist in the repo, run the [JSON Scope Selection](#json-scope-selection) procedure and incorporate the result before re-displaying the draft.
 
 ### Step 3 -- Write and run
 
@@ -91,12 +83,7 @@ For each repo entry in the current config:
 3. **Missing hooks** -- hooks present in a matched snippet but absent from the current config → flag
 4. **Unrecognized hooks** -- present in current config but not in any snippet → flag; suggest canonical equivalent where the purpose is obvious (e.g. `prettier-markdown` → `markdown-table-formatter`, `black` → `ruff-format`)
 
-After reporting drift on standard snippets, check for opt-in snippets: if a detected signal is present (e.g., `.claude/` directory) and the corresponding opt-in snippet is absent from the config, surface it as an available addition:
-
-```text
-Optional snippets not in config:
-  json  -- pretty-format-json (.claude/*.json) -- add?
-```
+After reporting drift on standard snippets, check for opt-in snippets: if any JSON files exist and `pretty-format-json` is absent from the config, offer to add it via the [JSON Scope Selection](#json-scope-selection) procedure.
 
 ### Step 2 -- Report drift
 
@@ -125,6 +112,102 @@ User says "write" to apply selected updates. Show diff before writing. Never wri
 
 If changes were written to `.pre-commit-config.yaml`, prompt (explicit yes/no): stage and commit `.pre-commit-config.yaml`?
 If yes → stage and commit.
+
+---
+
+## JSON Scope Selection
+
+Used whenever `pretty-format-json` is offered (Initial Setup or Verify). Produces a `files:` pattern (and optional `exclude:`) to insert into the snippet.
+
+### Step 1 -- Scan and classify
+
+Run: `find . -name "*.json" -not -path "./.git/*" -not -path "*/node_modules/*" | sort`
+
+Classify every file found into one of three buckets:
+
+**Never touch** (hard-exclude regardless of tier chosen):
+
+| Pattern                                            | Reason                        |
+|----------------------------------------------------|-------------------------------|
+| `package-lock.json`, `yarn.lock.json`, `*.lock`    | Generated; must not be sorted |
+| `node_modules/**`                                  | Third-party; never modify     |
+| `dist/**`, `build/**`, `coverage/**`, `.bundle/**` | Generated output              |
+| Files matching `*_\d{8}T\d{6}*.json`               | Timestamped data snapshots    |
+| Files > 100 KB                                     | Likely data, not config       |
+
+**Risky** (key order may be conventional or file is semi-generated):
+
+| Pattern                                           | Reason                                    |
+|---------------------------------------------------|-------------------------------------------|
+| `package.json`                                    | Conventional key order (name/version/...) |
+| `tsconfig*.json`, `jsconfig.json`                 | Some tools are order-sensitive            |
+| `appsscript.json`, `*.clasp.json`                 | GAS manifests; unknown sensitivity        |
+| Any JSON file under `Atlassian/`, `data/`, `tmp/` | Data blobs, not config                    |
+
+**Safe** (normalizing sort order adds value, no known risk):
+
+| Pattern                              | Reason             |
+|--------------------------------------|--------------------|
+| `.claude/*.json`                     | Claude config      |
+| `.vscode/*.json`                     | VS Code config     |
+| `.markdownlint.json`                 | Linting config     |
+| `.eslintrc.json`, `.prettierrc.json` | Linting/fmt config |
+| Other flat root-level config files   | Single-purpose     |
+
+### Step 2 -- Show classified inventory
+
+Display the full file list grouped by bucket, with counts:
+
+```text
+JSON files found (12 total):
+
+Safe to normalize (4):
+  .claude/settings.json
+  .claude/settings.local.json
+  .markdownlint.json
+  .vscode/settings.json
+
+Risky -- key order may be meaningful (3):
+  package.json
+  tsconfig.json
+  appsscript.json
+
+Never touch -- generated or data (5):
+  package-lock.json           [generated]
+  coverage/coverage-final.json  [generated]
+  dist/appsscript.json        [generated]
+  Atlassian/comments_parsed.json  [data]
+  Atlassian/comments_parsed_tagged.json  [data]
+```
+
+### Step 3 -- Present scope tiers
+
+Offer a numbered menu. Never-touch files are excluded from every tier.
+
+```text
+Select scope for pretty-format-json:
+
+  0) None          -- skip this hook
+  1) .claude/ only -- 2 files  (.claude/settings.json, ...)
+  2) Safe only     -- 4 files  (adds .vscode/, .markdownlint.json, ...)
+  3) Safe + risky  -- 7 files  (also includes package.json, tsconfig.json, ...)
+  4) All JSON      -- 7 files  (same as 3; never-touch files always excluded)
+  C) Custom        -- enter your own files: regex
+```
+
+Note: if "Safe + risky" and "All JSON" produce the same count (all non-never-touch files), collapse them into one option labeled "All (except never-touch)".
+
+### Step 4 -- Derive files: pattern
+
+| Tier | Generated pattern                                                                                                                     |
+|------|---------------------------------------------------------------------------------------------------------------------------------------|
+| 0    | (skip hook entirely)                                                                                                                  |
+| 1    | `files: '(^\|/)\.claude/.*\.json$'`                                                                                                   |
+| 2    | `files: '(^\|\/)(\.(claude\|vscode)\/.*\|\.markdownlint)\.json$'` (or equivalent)                                                     |
+| 3/4  | `files: '\.json$'` with `exclude: '(package-lock\|node_modules\|dist\|build\|coverage\|Atlassian)/.*'` (paths derived from inventory) |
+| C    | User-supplied pattern (show a preview of matching files before confirming)                                                            |
+
+After tier selection, show the derived `files:` / `exclude:` lines and list which files **will** be acted on and which **will not**, so the user can verify before the snippet is written.
 
 ---
 
@@ -205,9 +288,9 @@ Snippets live in `snippets/` alongside this file. Each is a self-contained `repo
 
 **Opt-in snippets** (offered separately; never auto-selected; review `files:` scope before applying):
 
-| File        | Contents                                                                             | Default scope         |
-|-------------|--------------------------------------------------------------------------------------|-----------------------|
-| `json.yaml` | `pretty-format-json` (`--autofix --sort-keys`) -- normalizes key order in JSON files | `.claude/*.json` only |
+| File        | Contents                                                                             | Scope                                                               |
+|-------------|--------------------------------------------------------------------------------------|---------------------------------------------------------------------|
+| `json.yaml` | `pretty-format-json` (`--autofix --sort-keys`) -- normalizes key order in JSON files | Set interactively via [JSON Scope Selection](#json-scope-selection) |
 
 To add a new category: create a new snippet file, no other changes needed.
 

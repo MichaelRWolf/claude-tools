@@ -1,10 +1,10 @@
-# Scope is intentionally narrow: only .claude/ config files.
-# Broader patterns risk touching package-lock.json, generated files, and data blobs.
-# To widen, change `files:` and add an `exclude:` pattern for generated/data JSON.
+# files: and exclude: are set interactively via JSON Scope Selection (see SKILL.md).
+# The pattern below is the narrowest default (tier 1: .claude/ only).
+# When installed by the skill, this line is replaced with the user-selected pattern.
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v6.0.0
     hooks:
       - id: pretty-format-json
-        args: ["--autofix", "--sort-keys"]
+        args: ["--autofix"]
         files: '(^|/)\.claude/.*\.json$'
