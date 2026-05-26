@@ -199,13 +199,28 @@ Note: if "Safe + risky" and "All JSON" produce the same count (all non-never-tou
 
 ### Step 4 -- Derive files: pattern
 
-| Tier | Generated pattern                                                                                                                     |
-|------|---------------------------------------------------------------------------------------------------------------------------------------|
-| 0    | (skip hook entirely)                                                                                                                  |
-| 1    | `files: '(^\|/)\.claude/.*\.json$'`                                                                                                   |
-| 2    | `files: '(^\|\/)(\.(claude\|vscode)\/.*\|\.markdownlint)\.json$'` (or equivalent)                                                     |
-| 3/4  | `files: '\.json$'` with `exclude: '(package-lock\|node_modules\|dist\|build\|coverage\|Atlassian)/.*'` (paths derived from inventory) |
-| C    | User-supplied pattern (show a preview of matching files before confirming)                                                            |
+**Tier 0** -- skip hook entirely (omit the hook from the config).
+
+**Tier 1** -- `.claude/` only:
+
+```yaml
+files: '(^|/)\.claude/.*\.json$'
+```
+
+**Tier 2** -- safe files (`.claude/`, `.vscode/`, `.markdownlint.json`):
+
+```yaml
+files: '(^|/)\.(claude|vscode)/.*\.json$|(^|/)\.markdownlint\.json$'
+```
+
+**Tiers 3/4** -- all except never-touch (paths in `exclude:` derived from inventory):
+
+```yaml
+files: '\.json$'
+exclude: '(package-lock|node_modules|dist|build|coverage)/.*'
+```
+
+**Tier C** -- user-supplied regex. Show a preview of matching files before confirming.
 
 After tier selection, show the derived `files:` / `exclude:` lines and list which files **will** be acted on and which **will not**, so the user can verify before the snippet is written.
 
