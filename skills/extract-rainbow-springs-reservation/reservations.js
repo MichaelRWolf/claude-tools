@@ -3,13 +3,24 @@ function getReservationsSheet() {
 }
 
 function applyDateFormat() {
-  getReservationsSheet().getRange("A2:A").setNumberFormat("yyyy-mm-dd (ddd)");
+  var sheet = getReservationsSheet();
+  sheet.getRange("A2:A").setNumberFormat("yyyy-mm-dd (ddd)");
+  sheet.getRange("B2:B").setNumberFormat("@");
+  sheet.getRange("C2:C").setNumberFormat("@");
+  sheet.getRange("D2:D").setNumberFormat("yyyy-mm-dd");
+  sheet.getRange("E2:E").setNumberFormat("#,##0;(#,##0)");
 }
 
 function applyAlignment() {
-  var range = getReservationsSheet().getRange("A:D");
-  range.setHorizontalAlignment("left");
-  range.setVerticalAlignment("middle");
+  var sheet = getReservationsSheet();
+  sheet
+    .getRange("A:D")
+    .setHorizontalAlignment("left")
+    .setVerticalAlignment("middle");
+  sheet
+    .getRange("E:E")
+    .setHorizontalAlignment("right")
+    .setVerticalAlignment("middle");
 }
 
 function removeDuplicates() {
@@ -22,7 +33,7 @@ function removeDuplicates() {
 
   var seen = {};
   var deduped = data.filter(function (row) {
-    var key = String(row[1]);
+    var key = String(row[0]) + "|" + String(row[1]);
     if (!key || seen[key]) return false;
     seen[key] = true;
     return true;
