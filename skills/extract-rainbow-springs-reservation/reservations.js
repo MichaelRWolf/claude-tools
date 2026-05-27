@@ -44,6 +44,35 @@ function removeDuplicates() {
     sheet.getRange(2, 1, deduped.length, 4).setValues(deduped);
 }
 
+function applyConditionalFormatting() {
+  var sheet = getReservationsSheet();
+
+  var is_today_confirmation_number = SpreadsheetApp.newConditionalFormatRule()
+    .whenFormulaSatisfied("=($E2=0)")
+    .setBackground("#b7e1cd")
+    .setRanges([sheet.getRange("B2:B990")])
+    .build();
+
+  var is_past_date = SpreadsheetApp.newConditionalFormatRule()
+    .whenFormulaSatisfied("=($E2<0)")
+    .setBackground("#f4cccc")
+    .setStrikethrough(true)
+    .setRanges([sheet.getRange("A2:D990")])
+    .build();
+
+  var is_confirmation_duplicate = SpreadsheetApp.newConditionalFormatRule()
+    .whenFormulaSatisfied('=and(B2<>"", B3<>"", or(B1=B2, B2=B3))')
+    .setBackground("#fff2cc")
+    .setRanges([sheet.getRange("B2:B990")])
+    .build();
+
+  sheet.setConditionalFormatRules([
+    is_today_confirmation_number,
+    is_past_date,
+    is_confirmation_duplicate,
+  ]);
+}
+
 function applySort() {
   var sheet = getReservationsSheet();
   sheet
@@ -54,6 +83,7 @@ function applySort() {
 function onOpen() {
   applyDateFormat();
   applyAlignment();
+  applyConditionalFormatting();
   removeDuplicates();
   applySort();
 }
