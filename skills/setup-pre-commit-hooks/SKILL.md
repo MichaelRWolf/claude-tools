@@ -24,6 +24,20 @@ Assembles or verifies `.pre-commit-config.yaml` from canonical snippets stored i
 
 ---
 
+## Critical: When hooks run
+
+**Analysis phase (Detect and Verify) is read-only. Never modify files based on hook state; never invoke `pre-commit run`.**
+
+- **Analysis** (Detect, Verify): reads config and repo state to report drift. No mutations, no hook execution.
+- **Hook execution** is owned exclusively by:
+  - `git commit` (automatic, as pre-commit hook runs before commit)
+  - Explicit user command: `pre-commit run` (if the user types it)
+- **Hook execution is never implied** by analyzing the config or setting up new hooks. Configuring `.pre-commit-config.yaml` ≠ running the hooks.
+
+This boundary ensures the skill is safe to run repeatedly without unexpected side effects.
+
+---
+
 ## Detect mode
 
 ### Step 1 -- Auto-detect categories
