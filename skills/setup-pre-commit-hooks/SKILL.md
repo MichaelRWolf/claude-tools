@@ -5,7 +5,24 @@ description: Prompt-driven skill for assembling .pre-commit-config.yaml from can
 
 # setup-pre-commit-hooks
 
-Assembles or verifies `.pre-commit-config.yaml` from canonical snippets stored in this skill's `snippets/` directory.
+Assembles or verifies `.pre-commit-config.yaml` from canonical snippets stored in this skill's `snippets/` directory. Also audits `.gitattributes` for byte-fidelity compliance (no implicit line-ending conversion).
+
+## TL;DR
+
+**What this skill does:**
+
+- Manages pre-commit hook configuration (`.pre-commit-config.yaml`) from canonical YAML snippets
+- Auto-detects which hooks your repo needs (markdown linting, Python formatting, shell linting, etc.)
+- Audits `.gitattributes` to ensure binary files round-trip unchanged (per [Jay Bazuzi's byte-fidelity principle](https://jay.bazuzi.com/gitattributes/): "I can put a file in now and get it out later, unchanged")
+
+**How to use:**
+
+- First-time setup: run in any repo before first commit
+- Ongoing health-check: run periodically to verify no drift from canonical configs
+
+**Key principle:** Implicit git line-ending conversion (`text=auto`) silently corrupts binary files across platforms. This skill enforces explicit declarations: `* -text diff` to opt out of conversion, plus per-extension `binary` flags.
+
+---
 
 ## Detect mode
 
@@ -97,20 +114,24 @@ prettier-markdown: unrecognized -- consider migrating to markdown-table-formatte
 
 If no drift: "Config matches canonical snippets. No changes needed."
 
-### Step 3 -- Makefile check
+### Step 3 -- Makefile and .gitattributes checks
 
-Always run, regardless of drift. See [Makefile Check Procedure](#makefile-check-procedure).
+Always run, regardless of drift.
 
-Prompt (explicit yes/no): run `make setup-hooks` (or `pre-commit install` if no Makefile)?
-If yes → run it.
+1. Run [Makefile Check Procedure](#makefile-check-procedure) and show recap
+2. Prompt (explicit yes/no): run `make setup-hooks` (or `pre-commit install` if no Makefile)?
+3. If yes → run it
+4. Run [.gitattributes Check Procedure](#gitattributes-check-procedure) and show recap
+5. Prompt (explicit yes/no): apply any offered `.gitattributes` changes?
+6. If yes → write and stage `.gitattributes`
 
 ### Step 4 -- Apply updates
 
-User says "write" to apply selected updates. Show diff before writing. Never write without explicit confirmation.
+User says "write" to apply selected updates to `.pre-commit-config.yaml`. Show diff before writing. Never write without explicit confirmation.
 
 ### Step 5 -- Post-write actions
 
-If changes were written to `.pre-commit-config.yaml`, prompt (explicit yes/no): stage and commit `.pre-commit-config.yaml`?
+If changes were written to `.pre-commit-config.yaml` or `.gitattributes`, prompt (explicit yes/no): stage and commit these changes?
 If yes → stage and commit.
 
 ---
@@ -235,8 +256,11 @@ Used by Initial Setup (Step 3) after `.pre-commit-config.yaml` is written. Verif
 1. Run [Makefile Check Procedure](#makefile-check-procedure) and show recap
 2. Prompt (explicit yes/no): run `make setup-hooks` (or `pre-commit install` if no Makefile)?
 3. If yes → run it
-4. Prompt (explicit yes/no): stage and commit `.pre-commit-config.yaml`?
-5. If yes → stage and commit
+4. Run [.gitattributes Check Procedure](#gitattributes-check-procedure) and show recap
+5. Prompt (explicit yes/no): apply any offered `.gitattributes` changes?
+6. If yes → write and stage `.gitattributes`
+7. Prompt (explicit yes/no): stage and commit `.pre-commit-config.yaml` (and `.gitattributes` if changed)?
+8. If yes → stage and commit
 
 Do not chain steps silently. Confirm each before running.
 
@@ -270,6 +294,90 @@ If user declines the Makefile offer → fall back to `pre-commit install` direct
 setup-hooks:
     pre-commit install
 ```
+
+---
+
+## .gitattributes Check Procedure
+
+Check the repo for byte-fidelity compliance per Jay Bazuzi's recommendation (<https://jay.bazuzi.com/gitattributes/>): no implicit line-ending conversion; all files round-trip unchanged.
+
+**Recap (always show):**
+
+```text
+.gitattributes present:           yes / no
+Byte-fidelity opt-out (* -text):  yes / no
+Binary files found in repo:       <list of detected extensions>
+Declared binary (unspecified):    <list of extensions unrecognized by git check-attr>
+```
+
+**Detection logic:**
+
+Fixed known-binary extension list: `jpeg jpg png gif bmp ico zip gz tar 7z pdf docx doc xlsx xls pptx ppt woff woff2 ttf otf mp3 mp4 mov sqlite sqlite3 db`
+
+1. Scan for files: `git ls-files | grep -E '\.(jpeg|jpg|...|db)$'` to find any binary-looking files tracked in the repo
+2. For each file found, run `git check-attr binary -- <path>`
+3. Classify results:
+   - `set` → binary declaration exists, OK
+   - `unset` → explicitly marked as text (may be intentional, e.g., `.html`)
+   - `unspecified` → no rule found → **the bug class** (file is treated by git's `text=auto` heuristic)
+4. Separately check `.gitattributes` for the pattern `^\*\s+-text` (strong opt-out via `* -text diff`) vs. relying on `text=auto` catch-all (weaker)
+
+**Offer (explicit yes/no, never auto-write):**
+
+If `.gitattributes` is missing entirely:
+
+- Show the canonical template below
+- Prompt: create `.gitattributes` with the template?
+- **Important:** If user confirms → write `.gitattributes`, then **restart the skill from the beginning** (as though it's a fresh Detect mode invocation). The presence of a newly-committed `.gitattributes` may affect hook selection and other detection logic downstream.
+
+If `.gitattributes` present but any detected binary files are unspecified:
+
+- Show a diff-style preview of proposed additions
+- Prompt: add the missing binary declarations?
+
+If `.gitattributes` present, all detected binaries are declared, but using `* text=auto` instead of `* -text diff`:
+
+- Explain the difference (heuristic vs. explicit opt-out)
+- Show a preview of the migration
+- Prompt: migrate to the stronger `* -text diff` form?
+
+**Canonical `.gitattributes` template:**
+
+```gitattributes
+# No line-ending conversion ever. Bytes in = bytes out.
+* -text diff
+
+# Binary files: no diff display, no conversion.
+*.jpeg binary
+*.jpg  binary
+*.png  binary
+*.gif  binary
+*.bmp  binary
+*.ico  binary
+*.zip  binary
+*.gz   binary
+*.tar  binary
+*.7z   binary
+*.pdf  binary
+*.docx binary
+*.doc  binary
+*.xlsx binary
+*.xls  binary
+*.pptx binary
+*.ppt  binary
+*.woff binary
+*.woff2 binary
+*.ttf  binary
+*.otf  binary
+*.mp3  binary
+*.mp4  binary
+*.mov  binary
+*.sqlite binary
+*.sqlite3 binary
+*.db   binary
+```
+
+**Reference:** See also Portable_Profile's git-templates (`~/repos/Portable_Profile/git/git-templates/info/attributes`) and `.gitattributes_global` for machine-local fallback defaults.
 
 ---
 
@@ -308,6 +416,29 @@ Snippets live in `snippets/` alongside this file. Each is a self-contained `repo
 | `json.yaml` | `pretty-format-json` (`--autofix --sort-keys`) -- normalizes key order in JSON files | Set interactively via [JSON Scope Selection](#json-scope-selection) |
 
 To add a new category: create a new snippet file, no other changes needed.
+
+---
+
+## References
+
+### Byte-fidelity and `.gitattributes`
+
+**Jay Bazuzi's post on why implicit line-ending conversion is a problem:**
+<https://jay.bazuzi.com/gitattributes/>
+
+**Key argument:** Git's default `core.autocrlf` and implicit `text=auto` heuristic violate the round-trip guarantee: "I can put a file in now and get it out later, unchanged." This is especially dangerous for:
+
+- Binary files (can be silently corrupted)
+- Scripts requiring specific line endings (e.g., Windows `.cmd` files requiring CRLF, or shebang scripts requiring LF)
+- Cross-platform projects where different contributors have different `core.autocrlf` settings
+
+**Solution:** Commit a `.gitattributes` file with explicit rules:
+
+- `* -text diff` -- opt out of all implicit conversion
+- Per-extension `binary` declarations for known binary types
+- Per-extension `text eol=lf` for files that must be LF (e.g., shell scripts, RFC 4180 CSV)
+
+This skill's `.gitattributes Check Procedure` enforces these conventions and helps repos bootstrap and maintain the file.
 
 ---
 
