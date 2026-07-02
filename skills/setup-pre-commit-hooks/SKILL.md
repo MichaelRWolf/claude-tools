@@ -1,11 +1,11 @@
 ---
 name: setup-pre-commit-hooks
-description: Prompt-driven skill for assembling .pre-commit-config.yaml from canonical YAML snippets. Supports initial setup (new repos) and verify mode (existing configs). Uses the Python pre-commit framework, not Husky. Run in any repo before first commit, or to health-check an existing config against the canonical snippet library. Includes opt-in scoped snippets (e.g., JSON normalization) for targeted use.
+description: Prompt-driven skill for assembling .pre-commit-config.yaml and tracking stable versions. Supports initial setup (new repos) and verify mode (existing configs). Offers updates when behind stable, notifies when ahead. Uses the Python pre-commit framework, not Husky. Also audits .gitattributes for byte-fidelity.
 ---
 
 # setup-pre-commit-hooks
 
-Assembles or verifies `.pre-commit-config.yaml` from canonical snippets stored in this skill's `snippets/` directory. Also audits `.gitattributes` for byte-fidelity compliance (no implicit line-ending conversion).
+Assembles or verifies `.pre-commit-config.yaml` from snippets tracked to stable releases. Offers to update hooks when behind stable, and notifies when intentionally ahead. Also audits `.gitattributes` for byte-fidelity compliance (no implicit line-ending conversion).
 
 ## TL;DR
 
@@ -18,9 +18,9 @@ Assembles or verifies `.pre-commit-config.yaml` from canonical snippets stored i
 **How to use:**
 
 - First-time setup: run in any repo before first commit
-- Ongoing health-check: run periodically to verify no drift from canonical configs
+- Ongoing health-check: run periodically to track stable versions and ensure no drift
 
-**Key principle:** Implicit git line-ending conversion (`text=auto`) silently corrupts binary files across platforms. This skill enforces explicit declarations: `* -text diff` to opt out of conversion, plus per-extension `binary` flags.
+**Key principle:** Snippets track the latest stable release for each hook. The skill offers to update pinned versions when behind stable, and notifies (at info level) when ahead of stable. Implicit git line-ending conversion (`text=auto`) silently corrupts binary files across platforms; this skill enforces explicit declarations: `* -text diff` to opt out of conversion, plus per-extension `binary` flags.
 
 ---
 
@@ -73,6 +73,25 @@ Pre-selection behavior differs per flow:
 
 ---
 
+## Version tracking strategy
+
+Snippets are maintained to track the latest **stable** release for each hook repository. Stability is determined by GitHub's release classification: stable releases are those not marked as pre-release.
+
+**Version states during Verify:**
+
+- ⚠️ **Behind stable** (pinned < stable) -- actionable drift; offer to update
+- ✅ **Current** (pinned = stable) -- no action needed
+- ℹ️ **Ahead of stable** (pinned > stable) -- intentional (pre-release or held back); notify at info level
+- 📌 **Pinned** (marked `# pinned: <reason>`) -- intentional lock; respect the pin, show reason
+
+**How stable versions are determined:**
+
+- Query GitHub API for each hook repo's latest release (non-prerelease)
+- If the pinned version is marked with `# pinned: <reason>`, respect the intent and show reason
+- If updating is offered and accepted, `pre-commit autoupdate` will fetch latest within the same major version (unless a new major is stable)
+
+---
+
 ## Initial Setup flow
 
 ### Step 1 -- Assemble config
@@ -103,30 +122,42 @@ The `shell-dotfiles` snippet names specific file paths (`home/.aliases`, etc.) m
 
 ## Verify flow
 
-### Step 1 -- Diff against canonical snippets
+### Step 1 -- Check version drift against stable
 
 For each repo entry in the current config:
 
-1. **Match to a snippet** -- identify which snippet file it belongs to
-2. **Check `rev:`** -- if it differs from the snippet's rev:
-   - If the `rev:` line has a `# pinned: <reason>` comment → show as intentionally pinned, display reason, skip stale warning
-   - Otherwise → flag as stale, show current vs canonical rev
-3. **Missing hooks** -- hooks present in a matched snippet but absent from the current config → flag
-4. **Unrecognized hooks** -- present in current config but not in any snippet → flag; suggest canonical equivalent where the purpose is obvious (e.g. `prettier-markdown` → `markdown-table-formatter`, `black` → `ruff-format`)
+1. **Determine stable version** -- query GitHub for latest non-prerelease version of that hook repo
+2. **Compare pinned to stable** -- classify into one of four states:
+   - ⚠️ **Behind** (pinned < stable) → actionable; offer to update
+   - ✅ **Current** (pinned = stable) → no action
+   - ℹ️ **Ahead** (pinned > stable) → intentional; inform at info level
+   - 📌 **Pinned** (marked `# pinned: <reason>`) → respect the pin, show reason
+3. **Missing hooks** -- hooks present in matched snippet but absent from current config → flag
+4. **Unrecognized hooks** -- present in current config but not in any snippet → flag; suggest canonical equivalent where obvious
 
-After reporting drift on standard snippets, check for opt-in snippets: if any JSON files exist and `pretty-format-json` is absent from the config, offer to add it via the [JSON Scope Selection](#json-scope-selection) procedure.
+After reporting version drift, check for opt-in snippets: if any JSON files exist and `pretty-format-json` is absent from the config, offer to add it via the [JSON Scope Selection](#json-scope-selection) procedure.
 
-### Step 2 -- Report drift
+### Step 2 -- Report version drift
 
-Show a structured drift report. Example format:
+Show a structured drift report with version states. Example format:
 
 ```text
-ruff-pre-commit:  rev v0.4.0 → canonical v0.11.2  [stale]
-markdownlint-cli: rev v0.48.0 → canonical v0.48.0  [ok]
-prettier-markdown: unrecognized -- consider migrating to markdown-table-formatter (canonical)
+markdownlint-cli:       ⚠️  v0.48.0 < stable v0.49.0  [behind] -- offer to update
+check-added-large-files: ✅ v6.0.0 = stable v6.0.0   [current]
+texthooks:              ℹ️  v0.7.2 > stable v0.7.1   [ahead of stable]
+ruff-pre-commit:        📌 v0.5.0  # pinned: waiting for Python 3.8 compat
+prettier:               ⚠️  unrecognized -- not in canonical snippets
 ```
 
-If no drift: "Config matches canonical snippets. No changes needed."
+Report structure:
+
+- **Behind:** show pinned, show stable, offer to update
+- **Current:** show version, confirm no action needed
+- **Ahead:** show pinned, show stable, info-level notification
+- **Pinned:** show version and reason, skip any drift message
+- **Unrecognized:** flag and suggest canonical equivalent if known
+
+If no drift and all versions current: "All hooks are tracking stable. No changes needed."
 
 ### Step 3 -- Makefile and .gitattributes checks
 
@@ -397,14 +428,18 @@ If `.gitattributes` present, all detected binaries are declared, but using `* te
 
 ## Intentional pin convention
 
-To suppress a stale-rev warning for a deliberately held-back version, add a `# pinned: <reason>` comment on the same line as `rev:`:
+To keep a hook at a specific version despite a newer stable release, add a `# pinned: <reason>` comment on the same line as `rev:`:
 
 ```yaml
 - repo: https://github.com/astral-sh/ruff-pre-commit
   rev: v0.4.0  # pinned: needs Python 3.8 compat until ApprovalTests migrates
 ```
 
-Verify mode will display the reason and skip the stale warning for that entry.
+Verify mode will display the reason and respect the pin (no update offer). This is useful for:
+
+- Waiting for downstream projects to adopt a new major version
+- Holding back a version with a known regression (not yet fixed in stable)
+- Intentional version management (e.g., testing pre-releases on a branch)
 
 ---
 
