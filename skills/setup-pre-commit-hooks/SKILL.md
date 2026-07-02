@@ -1,6 +1,6 @@
 ---
 name: setup-pre-commit-hooks
-description: Scope to a single repo (arg or current dir) and configure .pre-commit-config.yaml. Detects hook categories, tracks stable versions, offers updates when behind, audits .gitattributes for byte-fidelity. Runs autonomously across shell loops.
+description: Interactive skill for a single repo. Assembles .pre-commit-config.yaml, tracks stable versions, offers updates when behind, audits .gitattributes for byte-fidelity. Requires user decisions at each step. Installs hooks via Makefile only.
 args: "[repo_path]"
 ---
 
@@ -18,54 +18,15 @@ Assembles or verifies `.pre-commit-config.yaml` from snippets tracked to stable 
 
 **How to use:**
 
-- Single repo (current dir): `claude /setup-pre-commit-hooks`
-- Single repo (specified path): `claude /setup-pre-commit-hooks /path/to/repo`
-- Batch via shell: Loop and call with different paths; each Claude session handles one repo autonomously
-- Always scopes to exactly one repo; no multi-repo orchestration from Claude
+- Current repo: `claude /setup-pre-commit-hooks` (interactive; you answer questions at each step)
+- Specified repo: `claude /setup-pre-commit-hooks /path/to/repo` (interactive)
+- Scopes to exactly one repo. Requires active user feedback for all decisions. Fails if communication with user is not possible.
 
 **Key principle:** Snippets track the latest stable release for each hook. The skill offers to update pinned versions when behind stable, and notifies (at info level) when ahead of stable. Implicit git line-ending conversion (`text=auto`) silently corrupts binary files across platforms; this skill enforces explicit declarations: `* -text diff` to opt out of conversion, plus per-extension `binary` flags.
 
----
+**Hook installation:** Always via Makefile (`make setup-hooks` target). This validates that the Makefile and target exist and are correct. If Makefile is missing or target is not present, the skill fails fast and prompts you to create/fix it. Never uses `pre-commit install` directly.
 
-## Arguments
-
-**`[repo_path]` (optional):**
-
-- If provided: use that path as the target repo. Must be a git repository.
-- If omitted: use the current working directory (must be a git repository).
-- Always scopes to exactly one repo. No multi-repo orchestration.
-
-**Usage in shell loops:**
-
-```bash
-for repo in /path/one /path/two /path/three; do
-  cd "$repo" && claude /setup-pre-commit-hooks
-done
-```
-
-Or pass the path as an argument (useful if you can't cd):
-
-```bash
-for repo in /path/one /path/two /path/three; do
-  claude /setup-pre-commit-hooks "$repo"
-done
-```
-
-Each Claude invocation handles one repo autonomously: detects files, applies safe defaults (update to stable, install hooks), and completes.
-
----
-
-## Autonomous Mode
-
-When called as part of a shell loop (or any non-interactive context), the skill applies **safe defaults**:
-
-- **Version updates:** Always update hooks that are behind stable (unless explicitly pinned with `# pinned: <reason>`)
-- **Hook installation:** Always run `make setup-hooks` or `pre-commit install` unless Makefile/hooks are missing
-- **Gitattributes:** Apply canonical byte-fidelity template if missing; migrate weak `text=auto` to strong `* -text diff` if present
-- **JSON formatting scope:** Default to "Safe only" tier (`.claude/`, `.vscode/`, config root level) if offered
-- **No prompts for decisions:** The skill completes each step with output showing what was done
-
-**Why:** Shell orchestration expects each invocation to complete independently without blocking for user input. Safe defaults ensure reasonable outcomes across diverse repos.
+**Interactive requirement:** This skill requires active user feedback at each decision point. If communication with the user is not possible, the skill fails early rather than making assumptions.
 
 ---
 
@@ -84,8 +45,6 @@ This boundary ensures the skill is safe to run repeatedly without unexpected sid
 ---
 
 ## Detect mode
-
-*In autonomous mode: Skip user confirmation steps. Auto-detect all applicable categories, pre-select safe defaults, and apply without prompts.*
 
 ### Step 1 -- Auto-detect categories
 
@@ -141,8 +100,6 @@ Snippets are maintained to track the latest **stable** release for each hook rep
 
 ## Initial Setup flow
 
-*In autonomous mode: Auto-detect categories, assemble config, run autoupdate, install hooks, apply gitattributes, and commit. No prompts.*
-
 ### Step 1 -- Assemble config
 
 Read each selected snippet file from `snippets/`. Each file is a self-contained `repos:` list. Merge all `repos:` entries into one final config, preserving order: universal → markdown → python → shell → shell-dotfiles → local-guards.
@@ -170,8 +127,6 @@ The `shell-dotfiles` snippet names specific file paths (`home/.aliases`, etc.) m
 ---
 
 ## Verify flow
-
-*In autonomous mode: Skip all prompts. Report drift, then automatically update hooks behind stable (unless pinned), install hooks, apply gitattributes changes, and commit.*
 
 ### Step 1 -- Check version drift against stable
 
@@ -350,8 +305,10 @@ Used by Initial Setup (Step 3) after `.pre-commit-config.yaml` is written. Verif
 **Order is required**: hooks must be installed before the commit runs, so pre-commit uses the new config during the commit.
 
 1. Run [Makefile Check Procedure](#makefile-check-procedure) and show recap
-2. Prompt (explicit yes/no): run `make setup-hooks` (or `pre-commit install` if no Makefile)?
-3. If yes → run it
+   - If Makefile or target missing: **fail fast**. Show what's needed; ask user to create/fix and re-run skill.
+   - If present and target found: continue to step 2
+2. Prompt (explicit yes/no): run `make setup-hooks`?
+3. If yes → run it; if no → ask why (user can still commit without hooks if they choose)
 4. Run [.gitattributes Check Procedure](#gitattributes-check-procedure) and show recap
 5. Prompt (explicit yes/no): apply any offered `.gitattributes` changes?
 6. If yes → write and stage `.gitattributes`
@@ -364,7 +321,7 @@ Do not chain steps silently. Confirm each before running.
 
 ## Makefile Check Procedure
 
-Check the repo for the `setup-hooks` target and report findings before offering options.
+Check the repo for the `setup-hooks` target. Makefile with target is **required**; if missing or incomplete, fail fast and ask user to fix.
 
 **Recap (always show):**
 
@@ -375,13 +332,13 @@ setup-hooks target:     yes / no / n/a
 
 **Then offer based on findings:**
 
-| Makefile | Target | Action                                                     |
-|----------|--------|------------------------------------------------------------|
-| yes      | yes    | Use `make setup-hooks` as-is                               |
-| yes      | no     | Offer to add `setup-hooks` target; show proposed addition  |
-| no       | n/a    | Offer to create `Makefile` with target; show proposed file |
+| Makefile | Target | Action                                                                |
+|----------|--------|-----------------------------------------------------------------------|
+| yes      | yes    | ✅ Proceed: Use `make setup-hooks` as-is                               |
+| yes      | no     | ⚠️ Fail: Show proposed target; ask user to add it, then re-run skill  |
+| no       | n/a    | ⚠️ Fail: Show canonical Makefile template; ask user to create, re-run |
 
-If user declines the Makefile offer → fall back to `pre-commit install` directly with a note.
+Never fall back to `pre-commit install` directly. Hook installation is always via Makefile.
 
 **Canonical `setup-hooks` target:**
 
