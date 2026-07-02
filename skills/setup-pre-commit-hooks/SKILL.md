@@ -46,6 +46,16 @@ This boundary ensures the skill is safe to run repeatedly without unexpected sid
 
 ## Detect mode
 
+### Step 0 -- Announce repo root
+
+At the very start of the skill, display the repo root directory being analyzed. This confirms that the skill received the correct argument or environment variable and allows the user to catch targeting errors before any modifications are made.
+
+Example:
+
+```text
+Analyzing repo: /Users/michael/repos/claude-tools
+```
+
 ### Step 1 -- Auto-detect categories
 
 Inspect the repo to pre-select applicable snippet categories:
