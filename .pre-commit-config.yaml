@@ -4,6 +4,9 @@ repos:
     hooks:
       - id: check-added-large-files
         args: ["--maxkb=102400"] # 100MB
+      - id: pretty-format-json
+        args: ["--autofix"]
+        files: '(^|/)\.(claude|vscode)/.*\.json$|(^|/)\.markdownlint\.json$'
 
   - repo: local
     hooks:
@@ -19,12 +22,6 @@ repos:
       - id: markdownlint-fix
         # companion: .markdownlint.json must include "MD060": false
         # MD060 (table-column-style) conflicts with markdown-table-formatter output style
-
-  - repo: https://github.com/pre-commit/mirrors-prettier
-    rev: v3.1.0
-    hooks:
-      - id: prettier
-        types: [javascript]
 
   - repo: https://github.com/sirosen/texthooks
     rev: 0.7.1
