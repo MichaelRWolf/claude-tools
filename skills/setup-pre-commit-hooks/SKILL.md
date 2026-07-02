@@ -118,6 +118,12 @@ Consolidate `local` repo entries: if multiple snippets contribute local hooks, m
 
 ### Step 2 -- Show draft and confirm
 
+**Before each prompt, announce the repo root again:**
+
+```text
+Analyzing repo: <repo_path>
+```
+
 Display the assembled `.pre-commit-config.yaml` and a confirmation checklist:
 
 - Write `.pre-commit-config.yaml`?
@@ -127,6 +133,12 @@ Display the assembled `.pre-commit-config.yaml` and a confirmation checklist:
 After the standard checklist, offer any detected opt-in snippets. If any JSON files exist in the repo, run the [JSON Scope Selection](#json-scope-selection) procedure and incorporate the result before re-displaying the draft.
 
 ### Step 3 -- Write and run
+
+**Before executing actions, announce the repo root:**
+
+```text
+Analyzing repo: <repo_path>
+```
 
 Execute confirmed actions in order: write config → autoupdate → Post-Config-Change Sequence.
 
@@ -155,6 +167,12 @@ After reporting version drift, check for opt-in snippets: if any JSON files exis
 
 ### Step 2 -- Report version drift
 
+**Before the report, announce the repo root:**
+
+```text
+Analyzing repo: <repo_path>
+```
+
 Show a structured drift report with version states. Example format:
 
 ```text
@@ -178,6 +196,12 @@ If no drift and all versions current: "All hooks are tracking stable. No changes
 ### Step 3 -- Makefile and .gitattributes checks
 
 Always run, regardless of drift.
+
+**Before this step, announce the repo root:**
+
+```text
+Analyzing repo: <repo_path>
+```
 
 1. Run [Makefile Check Procedure](#makefile-check-procedure) and show recap
 2. Prompt (explicit yes/no): run `make setup-hooks` (or `pre-commit install` if no Makefile)?
@@ -313,6 +337,12 @@ After tier selection, show the derived `files:` / `exclude:` lines and list whic
 Used by Initial Setup (Step 3) after `.pre-commit-config.yaml` is written. Verify handles this inline via its own Steps 3 and 5.
 
 **Order is required**: hooks must be installed before the commit runs, so pre-commit uses the new config during the commit.
+
+**Before this sequence, announce the repo root:**
+
+```text
+Analyzing repo: <repo_path>
+```
 
 1. Run [Makefile Check Procedure](#makefile-check-procedure) and show recap
    - If Makefile or target missing: **fail fast**. Show what's needed; ask user to create/fix and re-run skill.
@@ -483,6 +513,18 @@ Snippets live in `snippets/` alongside this file. Each is a self-contained `repo
 | `json.yaml` | `pretty-format-json` (`--autofix --sort-keys`) -- normalizes key order in JSON files | Set interactively via [JSON Scope Selection](#json-scope-selection) |
 
 To add a new category: create a new snippet file, no other changes needed.
+
+---
+
+## Final Summary
+
+When the skill completes (whether successfully or with a failure), show:
+
+```text
+Analyzed repo: <repo_path>
+```
+
+Followed by a brief recap of what was done (e.g., "Config written and hooks installed", "No changes needed", "User cancelled after Step 2", etc.).
 
 ---
 
