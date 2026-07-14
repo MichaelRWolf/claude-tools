@@ -152,3 +152,29 @@ All event directories follow the pattern:
 - Optionally: `people.md`, `followup.md`, or other domain files (deferred to later phases)
 
 This skill works with your existing structure and guides you toward consistency without forcing it.
+
+## Editor Integration
+
+At the end of prep or followup workflows, I'll open `notes.md` in your editor:
+
+- Uses `$EDITOR` environment variable
+- Exits with error if `$EDITOR` is not set (does not default to vi or ed)
+- Opens the file for immediate editing if set
+
+## ICS File Handling
+
+If you provide a `.ics` file during event prep:
+
+- Saved as a sibling to `notes.md` in the event directory
+- Opened with `open(1)` to import into Calendar.app
+- Creates or updates the calendar entry automatically
+
+## People Enrichment via vCard
+
+When people are discovered or added to an event:
+
+- Query Contacts.app for each person (5-second timeout, non-blocking)
+- Store as RFC 6350 vCard files adjacent to notes.md
+- Populate People section in notes.md from vCard data
+
+Each person gets a `.vcf` file with name, email (if available), phone (if available). LinkedIn URLs can be added manually during editing. If Contacts.app times out or person not found, vCard includes name only--you can augment later.

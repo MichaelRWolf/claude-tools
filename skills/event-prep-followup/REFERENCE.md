@@ -292,3 +292,114 @@ If event doesn't exist when you ask to "followup", it searches anyway and asks "
 ## Cross-referencing (Phase 2)
 
 Deferred: Later, this skill could support tagging events by topic (people, projects, themes) and building an index to link across events. For now, rely on directory names and grep.
+
+## Editor Integration: Opening notes.md
+
+At the end of any prep or followup workflow:
+
+1. Check `$EDITOR` environment variable
+2. If set: `$EDITOR /path/to/notes.md`
+3. If not set: Warn user and do NOT default to vi or ed
+   - Message: "Warning: $EDITOR not set. To edit notes.md, set EDITOR env var or open the file manually."
+4. Do not block workflow completion on this failure
+5. User can manually open notes.md later if needed
+
+## ICS File Handling
+
+If a `.ics` file is provided as input during prep:
+
+1. Identify the .ics file in the skill invocation
+2. Save it in the event directory as a sibling to notes.md
+   - Example: `/Users/michael/repos/Events/2026-07-07_GenAI_Day/GenAI_Day.ics`
+3. Open it with `open(1)`:
+   - `open /path/to/event.ics`
+   - macOS Calendar.app handles the .ics import
+   - User sees Calendar app import dialog
+4. After import, return to skill workflow to continue with notes.md creation
+
+**Use case:** User exports event from Eventbrite, passes .ics to skill, event auto-creates in Calendar.
+
+## People Enrichment via vCard
+
+When inferring or discovering people for an event:
+
+### Sources
+
+- Event page (attendees list, speaker bios)
+- Explicitly named in prep input ("with Kristen and Marie")
+- Added to People section during outline customization
+- Extracted from Calendar.app event attendees
+
+### Workflow: Query → Store → Augment
+
+1. **Query Contacts.app** via `enrich_people.sh "Name"` (5-second timeout, non-blocking)
+2. **Store as vCard** adjacent to notes.md: `2026-07-07_Event_Name/Kristen_Walsh.vcf`
+3. **Read vCards** to populate People section in notes.md
+
+### vCard Storage
+
+Each person discovered gets a separate RFC 6350 vCard file in the event directory:
+
+```text
+/Users/michael/repos/Events/2026-07-07_GenAI_Day/
+├── notes.md
+├── Kristen_Walsh.vcf
+├── Marie_Chen.vcf
+└── Alan_Turing.vcf
+```
+
+### vCard Format (RFC 6350)
+
+Minimal vCard with only non-empty fields:
+
+```vcard
+BEGIN:VCARD
+VERSION:4.0
+FN:Jess Wolfe
+EMAIL:jess@swarmia.com
+TEL:+1-555-5678
+URL:https://www.linkedin.com/in/thejessicawolfe/
+END:VCARD
+```
+
+- `FN` -- Full name (always present)
+- `EMAIL` -- Extracted from Contacts; omitted if not found/unavailable
+- `TEL` -- Extracted from Contacts; omitted if not found/unavailable
+- `URL` -- Extracted from Contacts (LinkedIn, websites, etc.); omitted if not found/unavailable
+
+### Augmenting notes.md People Section
+
+From vCards, populate the People section. Format: each person as a bullet, contact info inline:
+
+```markdown
+## People
+
+- Kristen Walsh -- kristen.walsh@acme.com -- +1-502-555-0199
+- Marie Chen -- marie@example.com -- +1-555-5678
+- Alan Turing
+```
+
+(Blanks omitted; LinkedIn added manually if available during editing.)
+
+### Contacts.app Timeout Handling
+
+`enrich_people.sh` with 5-second timeout:
+
+1. Queries Contacts.app
+2. If timeout or not found: creates minimal vCard with just name
+3. Does not block workflow
+4. User can manually augment vCard files later if needed
+
+## End-of-Workflow: Open Editor
+
+After notes.md is written (whether from prep or followup):
+
+```bash
+${EDITOR:?EDITOR variable unset} /path/to/notes.md
+```
+
+The `${EDITOR:?message}` expansion:
+
+- Uses `$EDITOR` if set, opens the file
+- Exits immediately with error if `$EDITOR` is not set (no defaults to vi/ed)
+- Simple, direct, fails fast
