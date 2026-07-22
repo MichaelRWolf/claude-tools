@@ -144,7 +144,7 @@ Execute confirmed actions in order: write config → autoupdate → Post-Config-
 
 ### Note on `shell-dotfiles` category
 
-The `shell-dotfiles` snippet names specific file paths (`home/.aliases`, etc.) matching the Portable_Profile repo. If installing in a different dotfiles repo, edit the `files:` patterns in the snippet before or after writing. The skill will note this when `shell-dotfiles` is selected.
+The `shell-dotfiles` snippet names specific file paths (`home/.aliases`, etc.) matching the portable-profile repo. If installing in a different dotfiles repo, edit the `files:` patterns in the snippet before or after writing. The skill will note this when `shell-dotfiles` is selected.
 
 ---
 
@@ -470,7 +470,7 @@ If `.gitattributes` present, all detected binaries are declared, but using `* te
 *.db   binary
 ```
 
-**Reference:** See also Portable_Profile's git-templates (`~/repos/Portable_Profile/git/git-templates/info/attributes`) and `.gitattributes_global` for machine-local fallback defaults.
+**Reference:** See also portable-profile's git-templates (`~/repos/portable-profile/git/git-templates/info/attributes`) and `.gitattributes_global` for machine-local fallback defaults.
 
 ---
 
