@@ -1,6 +1,6 @@
 ---
 name: event-prep-followup
-description: Prepare for and follow up from events with structured notes and checklists. Discovers events by date/name/person from prompt, Events directory, or Calendar.app. Creates event directories and notes.md with custom sections. Tracks follow-up status by phase (prep, attend, follow-up, closed) with todo lists marked ready/WIP/done. Use when user says "prep for [date/event]", "followup for [date/event]", or provides an event URL/reference.
+description: Prepare for and follow up from events with structured notes and checklists. Discovers events by date/name/person from prompt, Events directory, or Calendar.app. Creates event directories and notes.md with custom sections. Tracks follow-up status by phase (prep, attend, follow-up, closed) with follow-up items marked per the task-management skill. Use when user says "prep for [date/event]", "followup for [date/event]", or provides an event URL/reference.
 ---
 
 # Event Prep & Follow-up
@@ -68,7 +68,7 @@ Display current state by phase:
 
 - **Prep:** ✓ (done) or ⊘ (pending)
 - **Attend:** ✓ (done) or ⊘ (pending) -- links to notes.md
-- **Follow-up:** Todo list with status (ready / WIP / done)
+- **Follow-up:** Items with task-management marks (`[ ]` `[/]` `[x]` `[-]` `[<]` `[@]` `[>]`)
 - **Closed:** ✓ or -
 
 Example:
@@ -84,9 +84,9 @@ Attend:
   ⊘ notes pending -- notes.md
 
 Follow-up:
-  - [ ] send thank-yous (ready)
-  - [ ] capture takeaways (ready)
-  - [ ] research queue (WIP)
+  - [ ] send thank-yous
+  - [ ] capture takeaways
+  - [/] research queue
   
 Closed: -
 ```
@@ -96,7 +96,8 @@ Closed: -
 You can:
 
 - Update phase (move from Prep → Attend → Follow-up → Closed)
-- Mark todos as ready, WIP, or done
+- Mark items with the task-management marks (see the `task-management` skill)
+- Commit an item to Daylite by migrating it: mark `[>]` and append `-> Daylite: <task title>`; status then lives in Daylite
 - Edit follow-up items directly in the skill interaction
 
 ## Advanced: Custom Sections

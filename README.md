@@ -28,6 +28,12 @@ make status
 |---------|-------------|
 | `/extract-rainbow-springs-reservation` | Extract Florida State Parks day-use reservation confirmations from screenshots → CSV in chat + clipboard |
 
+## Skills
+
+| Skill | Description |
+|-------|-------------|
+| `task-management` | Capture, mark, and migrate follow-up tasks between markdown notes and Daylite; log contacts; weekly review |
+
 ## Daylite MCP
 
 Connects Claude Code and Claude.app to Daylite's local MCP server.
