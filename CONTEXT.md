@@ -30,3 +30,15 @@ Use a skill (not a command) when supporting files must travel with the instructi
 A single `.md` file under `commands/`. Symlinked to `~/.claude/commands/` via `make install`. Invoked as `/command-name` in Claude Code.
 
 Use a command (not a skill) when the instructions are fully self-contained with no supporting files.
+
+### MCP
+
+Model Context Protocol: an open standard for an AI app to call a server's tools. Daylite's server is `DayliteMCPBridge` (stdio, local only).
+
+### MCPB
+
+MCP Bundle: a `.mcpb` zip containing a `manifest.json`. Claude.app installs it as an extension. Daylite ships `Daylite.mcpb`.
+
+### MCP registration
+
+The entry that tells a client how to launch a server. For claude(1) it lives in `~/.claude.json` and is written by `claude mcp add`. For Claude.app it is the installed MCPB extension.
